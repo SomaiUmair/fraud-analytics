@@ -1,0 +1,11 @@
+# Data files are too large for GitHub (>100MB limit) — see README for source
+data/
+
+# Secrets
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.ipynb_checkpoints/
