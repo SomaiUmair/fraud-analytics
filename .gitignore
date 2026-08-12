@@ -1,5 +1,7 @@
-# Data files are too large for GitHub (>100MB limit) — see README for source
-data/
+# Data files are too large for GitHub (>100MB limit) — see README for source.
+# Exception: the small committed sample so visitors can see the data's shape.
+data/*
+!data/sample_1000.csv
 
 # Secrets
 .env
