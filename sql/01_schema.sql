@@ -1,32 +1,29 @@
 -- 01_schema.sql — raw landing table for the Sparkov CSVs.
--- A faithful, typed copy of the source files. No cleaning, no derived
--- columns, no indexes here: cleaning happens in 02_clean.sql, and loading
--- 1.85M rows is much faster into an index-free table. Run once.
+-- Slim by design: the free-tier disk (~1GB) cannot hold the data twice, so
+-- zero-signal columns (names, street, CSV row index, duplicate epoch
+-- timestamp) are dropped at load time and never stored. The clean layer is
+-- a view (02_clean.sql) — computed on read, zero storage. No indexes here;
+-- they come after loading (02), because inserts into indexed tables crawl.
 
 CREATE TABLE IF NOT EXISTS transactions_raw (
-    row_id      INTEGER,          -- CSV "Unnamed: 0" leftover index; dropped in cleaning
     trans_time  TIMESTAMP,        -- trans_date_trans_time in the CSV
-    cc_num      TEXT,             -- identifier, not a quantity: no arithmetic, and TEXT
-                                  -- can never silently eat a leading zero
-    merchant    TEXT,
+    cc_num      TEXT,             -- identifier, not a quantity: no arithmetic,
+                                  -- and TEXT never eats a leading zero
+    merchant    TEXT,             -- still carries the simulator's "fraud_" prefix
     category    TEXT,
     amt         NUMERIC(10,2),    -- money is exact decimal, never float
-    first_name  TEXT,             -- CSV "first"
-    last_name   TEXT,             -- CSV "last"
     gender      TEXT,
-    street      TEXT,
+    dob         DATE,             -- kept so the view can compute age-at-transaction
+    job         TEXT,
     city        TEXT,
     state       TEXT,
-    zip         TEXT,             -- New Jersey zips start with 0; a numeric type
+    zip         TEXT,             -- New Jersey zips start with 0; numeric types
                                   -- would turn 07001 into 7001
+    city_pop    INTEGER,
     lat         DOUBLE PRECISION, -- customer home coordinates
     long        DOUBLE PRECISION,
-    city_pop    INTEGER,
-    job         TEXT,
-    dob         DATE,
-    trans_num   TEXT,             -- unique transaction id (hex string)
-    unix_time   BIGINT,           -- same instant as trans_time, epoch seconds; redundant
     merch_lat   DOUBLE PRECISION, -- merchant coordinates (distance feature later)
     merch_long  DOUBLE PRECISION,
+    trans_num   TEXT,             -- unique transaction id (hex string)
     is_fraud    SMALLINT          -- the label: 0 legitimate, 1 fraud
 );

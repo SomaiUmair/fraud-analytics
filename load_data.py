@@ -2,8 +2,10 @@
 
 Streams the ~480MB of source data through memory 50k rows at a time and
 bulk-loads each batch with PostgreSQL's COPY — the fast path, roughly 50x
-quicker than row-by-row INSERTs. Aborts if the table already has rows, so
-an accidental rerun can't create duplicates.
+quicker than row-by-row INSERTs. Zero-signal columns are dropped in pandas
+before they ever reach the database (the free-tier disk is ~1GB, so every
+stored byte has to earn its place). Aborts if the table already has rows,
+so an accidental rerun can't create duplicates.
 """
 
 import os
@@ -18,12 +20,21 @@ load_dotenv()
 FILES = ["data/fraudTrain.csv", "data/fraudTest.csv"]
 CHUNK_SIZE = 50_000
 
-# Target columns in schema order; COPY maps incoming CSV fields to these
-# positionally, so this list must match both the table and the CSV layout.
+# CSV columns we never store: row index, names, street address (zero
+# analytical signal) and unix_time (duplicate of the timestamp).
+DROP_COLS = ["Unnamed: 0", "first", "last", "street", "unix_time"]
+
+# Kept columns, renamed to schema order. COPY maps CSV fields to table
+# columns positionally, so this order must match 01_schema.sql exactly.
+KEEP_ORDER = [
+    "trans_date_trans_time", "cc_num", "merchant", "category", "amt",
+    "gender", "dob", "job", "city", "state", "zip", "city_pop",
+    "lat", "long", "merch_lat", "merch_long", "trans_num", "is_fraud",
+]
+
 COLUMNS = (
-    "row_id, trans_time, cc_num, merchant, category, amt, first_name, "
-    "last_name, gender, street, city, state, zip, lat, long, city_pop, "
-    "job, dob, trans_num, unix_time, merch_lat, merch_long, is_fraud"
+    "trans_time, cc_num, merchant, category, amt, gender, dob, job, city, "
+    "state, zip, city_pop, lat, long, merch_lat, merch_long, trans_num, is_fraud"
 )
 
 COPY_SQL = f"COPY transactions_raw ({COLUMNS}) FROM STDIN WITH CSV"
@@ -32,11 +43,12 @@ COPY_SQL = f"COPY transactions_raw ({COLUMNS}) FROM STDIN WITH CSV"
 def load_file(path: str, cursor) -> int:
     """Stream one CSV into the raw table in CHUNK_SIZE batches."""
     total = 0
-    for chunk in pd.read_csv(path, chunksize=CHUNK_SIZE):
+    for chunk in pd.read_csv(path, chunksize=CHUNK_SIZE, dtype={"zip": str, "cc_num": str}):
+        slim = chunk.drop(columns=DROP_COLS)[KEEP_ORDER]
         buffer = StringIO()
-        # No header (COPY expects data only) and no index (the CSV's own
-        # row_id column is already the first field).
-        chunk.to_csv(buffer, header=False, index=False)
+        # No header (COPY expects pure data) and no index (pandas would
+        # invent an extra first column and shift everything right).
+        slim.to_csv(buffer, header=False, index=False)
         buffer.seek(0)
         cursor.copy_expert(COPY_SQL, buffer)
         total += len(chunk)
@@ -45,7 +57,11 @@ def load_file(path: str, cursor) -> int:
 
 
 def main() -> None:
-    conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+    conn = psycopg2.connect(
+        os.getenv("DATABASE_URL"),
+        keepalives=1, keepalives_idle=30,
+        keepalives_interval=10, keepalives_count=5,
+    )
     cur = conn.cursor()
 
     cur.execute("SELECT COUNT(*) FROM transactions_raw")
