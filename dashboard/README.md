@@ -50,6 +50,31 @@ Fraud Rate by `customer_age` binned to 10-year groups.
    `git add dashboard/screenshots && git commit -m "Add dashboard screenshots" && git push`
 4. Commit the .pbix too if it is under ~95MB (GitHub's limit is 100MB)
 
+## Option B — build from the local workbook (no database connection)
+
+If Power BI can't reach the database (DNS/SSL issues on some networks), use
+the committed extract instead — same dashboard, zero connectivity required:
+
+1. Get Data → **Excel workbook** → `dashboard/source_extract.xlsx` (in this
+   repo) → check **all six sheets** → Load
+   (Regenerate it anytime with `python make_dashboard_extract.py`.)
+2. Measures become per-sheet rates — create these instead of section 3's:
+   ```
+   Overall Fraud Rate = DIVIDE(SUM(totals[fraud_count]), SUM(totals[transactions]))
+   State Rate  = DIVIDE(SUM(by_state[fraud_count]),  SUM(by_state[transactions]))
+   Time Rate   = DIVIDE(SUM(hour_dow[fraud_count]),  SUM(hour_dow[transactions]))
+   Cat Rate    = DIVIDE(SUM(by_category[fraud_count]), SUM(by_category[transactions]))
+   Age Rate    = DIVIDE(SUM(age_bands[fraud_count]), SUM(age_bands[transactions]))
+   ```
+   (Counts and fraud counts are kept per sheet so rates always recompute as
+   SUM(fraud)/SUM(n) — never averaged percentages.)
+3. Page mapping: cards ← `totals` columns + Overall Fraud Rate · line chart ←
+   `monthly` (month, fraud_count) · map/table ← `by_state` + State Rate (set
+   the state column's data category as in section 3) · matrix ← `hour_dow`
+   (rows trans_dow, columns trans_hour, values Time Rate) · bar ← `by_category`
+   + Cat Rate · column ← `age_bands` (age_band_start is pre-binned to decades,
+   so skip the grouping step)
+
 ## Troubleshooting
 - **SSL/cert error:** download the CA cert from the Aiven console and install
   it for Current User. Do not disable encryption.
