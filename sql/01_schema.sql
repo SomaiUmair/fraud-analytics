@@ -1,8 +1,8 @@
--- 01_schema.sql — raw landing table for the Sparkov CSVs.
+-- 01_schema.sql - raw landing table for the Sparkov CSVs.
 -- Slim by design: the free-tier disk (~1GB) cannot hold the data twice, so
 -- zero-signal columns (names, street, CSV row index, duplicate epoch
 -- timestamp) are dropped at load time and never stored. The clean layer is
--- a view (02_clean.sql) — computed on read, zero storage. No indexes here;
+-- a view (02_clean.sql) - computed on read, zero storage. No indexes here;
 -- they come after loading (02), because inserts into indexed tables crawl.
 
 CREATE TABLE IF NOT EXISTS transactions_raw (

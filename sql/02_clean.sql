@@ -1,6 +1,6 @@
--- 02_clean.sql — the clean layer as a VIEW, plus indexes on the base table.
+-- 02_clean.sql - the clean layer as a VIEW, plus indexes on the base table.
 -- A view stores nothing: derivations are computed when queried, which is the
--- deliberate trade on a ~1GB free tier — compute on read instead of storing
+-- deliberate trade on a ~1GB free tier - compute on read instead of storing
 -- the 1.85M rows twice. Filters on indexed base columns (time, category,
 -- state, fraud flag) still use the indexes through the view.
 
@@ -32,10 +32,10 @@ FROM transactions_raw;
 
 -- Indexes AFTER the load: write fast once, then optimize for reading.
 -- Only two, deliberately: index builds cost disk (temp sort space + WAL),
--- and on this ~1GB instance the category/state indexes aren't worth it —
+-- and on this ~1GB instance the category/state indexes aren't worth it -
 -- one-off EDA scans of a 400MB table take seconds, and Power BI imports
 -- the data once. Index what gets filtered constantly, scan the rest.
 CREATE INDEX IF NOT EXISTS idx_raw_time ON transactions_raw (trans_time);
 -- Partial index: fraud is 0.5% of rows and "show me the fraud" is the most
--- common filter — indexing only those ~9.6k rows is tiny and fast.
+-- common filter - indexing only those ~9.6k rows is tiny and fast.
 CREATE INDEX IF NOT EXISTS idx_raw_is_fraud ON transactions_raw (is_fraud) WHERE is_fraud = 1;

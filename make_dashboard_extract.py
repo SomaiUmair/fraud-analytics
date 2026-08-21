@@ -1,4 +1,4 @@
-"""Build dashboard/source_extract.xlsx — pre-aggregated tables for Power BI.
+"""Build dashboard/source_extract.xlsx - pre-aggregated tables for Power BI.
 
 Lets the dashboard be built from a small local workbook instead of a live
 database connection (useful when Power BI can't reach the server). Each sheet

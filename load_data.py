@@ -1,7 +1,7 @@
 """Load both fraud CSVs into transactions_raw, in chunks.
 
 Streams the ~480MB of source data through memory 50k rows at a time and
-bulk-loads each batch with PostgreSQL's COPY — the fast path, roughly 50x
+bulk-loads each batch with PostgreSQL's COPY - the fast path, roughly 50x
 quicker than row-by-row INSERTs. Zero-signal columns are dropped in pandas
 before they ever reach the database (the free-tier disk is ~1GB, so every
 stored byte has to earn its place). Aborts if the table already has rows,
@@ -67,7 +67,7 @@ def main() -> None:
     cur.execute("SELECT COUNT(*) FROM transactions_raw")
     existing = cur.fetchone()[0]
     if existing:
-        print(f"transactions_raw already holds {existing:,} rows — aborting "
+        print(f"transactions_raw already holds {existing:,} rows - aborting "
               "so a rerun can't duplicate data.")
         return
 
@@ -77,7 +77,7 @@ def main() -> None:
     for path in FILES:
         grand_total += load_file(path, cur)
     conn.commit()
-    print(f"Done — {grand_total:,} rows committed to transactions_raw")
+    print(f"Done - {grand_total:,} rows committed to transactions_raw")
 
 
 if __name__ == "__main__":
